@@ -100,6 +100,7 @@
     <select id="pmtiles" onchange="SelectPMTiles()">
       <option value="MS_BuildingFootprints_Japan">Japan</option>
       <option value="MS_BuildingFootprints_Ukraine">Ukraine</option>
+      <option value="032010110">UnitedStates</option>
     </select>
   </div>
   <div class="map-overlay top">
@@ -256,6 +257,7 @@
         // キー：国、値：緯度、経度
         'MS_BuildingFootprints_Japan': [139.7671248, 35.6812362], // 東京都
         'MS_BuildingFootprints_Ukraine': [30.5234, 50.450],       // キエフ
+        '032010110': [-74.0105162, 40.7591192],                   // マンハッタン
       };
       return CenterTable[CenterText];
     }
