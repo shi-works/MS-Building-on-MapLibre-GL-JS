@@ -1,0 +1,338 @@
+<html>
+
+<head>
+  <title>Microsoft GlobalMLBuildingFootprints（PMTiles）</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet">
+  <script src="https://unpkg.com/pmtiles@2.7.0/dist/index.js"></script>
+  <style>
+    body {
+      margin: 0;
+    }
+
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+
+    .map-overlay {
+      font: bold 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+      position: absolute;
+      width: 220px;
+      bottom: 20px;
+      left: 0px;
+      padding: 10px;
+    }
+
+    .map-overlay .map-overlay-inner {
+      background-color: #fff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      border-radius: 3px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .map-overlay label {
+      display: block;
+      margin: 0 0 0px;
+      font-size: 12px;
+      top: 100px;
+      left: 10px;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .map-overlay input {
+      background-color: transparent;
+      display: inline-block;
+      width: 100%;
+      position: relative;
+      margin: 0;
+      cursor: ew-resize;
+    }
+
+    .maplibregl-popup .maplibregl-popup-content {
+      padding: 8px 10px;
+      font: 12px/14px Arial, Helvetica, sans-serif;
+      color: black;
+      background: white;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.9);
+      border-radius: 5px;
+      width: 250px;
+      height: 250px;
+      overflow: scroll;
+    }
+
+    #select-pmtiles {
+      padding: 3px 4px;
+      font: 12px/14px Arial, Helvetica, sans-serif;
+      color: black;
+      background: white;
+      background: rgba(255, 255, 255, 1.0);
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+      border-radius: 5px;
+      width: fit-content;
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      z-index: 10;
+    }
+
+    th,
+    td {
+      border: solid 1px;
+    }
+
+    table {
+      font-size: 8pt;
+      border-collapse: collapse;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="map"></div>
+  <div id="select-pmtiles">
+    <label><b>データセット<br>(BuildingFootprints)</b></label><br>
+    <select id="pmtiles" onchange="SelectPMTiles()">
+      <option value="MS_BuildingFootprints_Japan">Japan</option>
+      <option value="MS_BuildingFootprints_Ukraine">Ukraine</option>
+    </select>
+  </div>
+  <div class="map-overlay top">
+    <div class="map-overlay-inner">
+      <label>BuildingFootprints 不透明度: <span id="model-slider-opacity-value">100%</span></label>
+      <input id="model-slider-opacity" type="range" min="0" max="100" step="1" value="100">
+      <label>オルソ画像 不透明度: <span id="ortho-slider-opacity-value">100%</span></label>
+      <input id="ortho-slider-opacity" type="range" min="0" max="100" step="1" value="100">
+    </div>
+  </div>
+  <script type="text/javascript">
+    let protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+
+    // MSベクトルタイル
+    let PMTiles_URL = "https://pmtiles-data.s3.ap-northeast-1.amazonaws.com/MS_BuildingFootprints/MS_BuildingFootprints_Japan.pmtiles";
+
+    const p = new pmtiles.PMTiles(PMTiles_URL)
+    p.getMetadata().then((res) => console.log(res));
+
+    protocol.add(p);
+
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://tile2.openstreetmap.jp/styles/osm-bright/style.json',
+      zoom: 14,
+      minZoom: 1,
+      maxZoom: 23,
+      center: [139.7671248, 35.6812362], // 東京駅
+      pitch: 0,
+      bearing: 0,
+      hash: true,
+      // 既存Attributionを非表示
+      attributionControl: false,
+    })
+
+    // ズーム・回転
+    map.addControl(new maplibregl.NavigationControl());
+
+    // フルスクリーンモードのオンオフ
+    map.addControl(new maplibregl.FullscreenControl());
+
+    // 現在位置表示
+    map.addControl(new maplibregl.GeolocateControl({
+      positionOptions: {
+        enableHighAccuracy: false
+      },
+      fitBoundsOptions: { maxZoom: 18 },
+      trackUserLocation: true,
+      showUserLocation: true
+    }));
+
+    // スケール表示
+    map.addControl(new maplibregl.ScaleControl({
+      maxWidth: 200,
+      unit: 'metric'
+    }));
+
+    // Attributionを折りたたみ表示
+    map.addControl(new maplibregl.AttributionControl({
+      compact: true,
+      // カスタムAttributionを表示
+      customAttribution: '（<a href="https://twitter.com/syanseto" target="_blank">Twitter</a> | <a href="https://github.com/shi-works/Microsoft-GlobalMLBuildingFootprints-on-MapLibre-GL-JS" target="_blank">Github</a>） '
+    }));
+
+    map.on('load', () => {
+
+      // 地理院タイル（全国最新写真（シームレス））
+      map.addSource('seamlessphoto', {
+        type: 'raster',
+        tiles: [
+          'https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg'
+        ],
+        minzoom: 14,
+        maxzoom: 18,
+        attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html#seamlessphoto' target='_blank'>地理院タイル（全国最新写真（シームレス））</a>"
+      });
+
+      map.addLayer({
+        id: 'seamlessphoto',
+        type: 'raster',
+        source: 'seamlessphoto'
+      });
+
+      // 不透明度の初期表示
+      map.setPaintProperty(
+        'seamlessphoto',
+        'raster-opacity',
+        1.0
+      );
+
+      // スライダーで航空写真オルソ画像タイルの不透明度を制御
+      const orthosliderOpactiy = document.getElementById('ortho-slider-opacity');
+      const orthosliderOpactiyValue = document.getElementById('ortho-slider-opacity-value');
+
+      orthosliderOpactiy.addEventListener('input', (e) => {
+        map.setPaintProperty(
+          'seamlessphoto',
+          'raster-opacity',
+          parseInt(e.target.value, 10) / 100
+        );
+        orthosliderOpactiyValue.textContent = e.target.value + '%';
+      });
+
+      // MSベクトルタイル
+      map.addSource("pmtiles-building", {
+        type: "vector",
+        url: "pmtiles://" + PMTiles_URL,
+        attribution: '<a href="https://github.com/microsoft/GlobalMLBuildingFootprints">© Microsoft GlobalMLBuildingFootprintsを加工して作成</a>',
+        generateId: true
+      });
+
+      map.addLayer({
+        'id': 'pmtiles-building',
+        'source': 'pmtiles-building',
+        'source-layer': 'MS_BuildingFootprints_Japanfgb',
+        "minzoom": 10,
+        "maxzoom": 23,
+        'layout': {
+          'visibility': 'visible',
+        },
+        'type': 'fill-extrusion',
+        'paint': {
+          "fill-extrusion-color": 'rgb(0, 127, 255)',
+          "fill-extrusion-opacity": 1.0,
+          "fill-extrusion-height": ["get", "height"]
+        }
+      });
+
+      // 不透明度の初期表示
+      map.setPaintProperty(
+        'pmtiles-building',
+        'fill-extrusion-opacity',
+        1.0
+      );
+
+      // スライダーで建築物モデルの不透明度を制御
+      const modelsliderOpactiy = document.getElementById('model-slider-opacity');
+      const modelsliderOpactiyValue = document.getElementById('model-slider-opacity-value');
+
+      modelsliderOpactiy.addEventListener('input', (e) => {
+        map.setPaintProperty(
+          'pmtiles-building',
+          'fill-extrusion-opacity',
+          parseInt(e.target.value, 10) / 100
+        );
+        modelsliderOpactiyValue.textContent = e.target.value + '%';
+      });
+
+    });
+
+    // マップの中心座標を設定
+    function getMapCenter(CenterText) {
+      const CenterTable = {
+        // キー：国、値：緯度、経度
+        'MS_BuildingFootprints_Japan': [139.7671248, 35.6812362], // 東京都
+        'MS_BuildingFootprints_Ukraine': [30.5234, 50.450],       // キエフ
+      };
+      return CenterTable[CenterText];
+    }
+
+    // PMTiles切り替え表示
+    function SelectPMTiles() {
+      var BasePMTilesName = document.getElementById('pmtiles').value;
+
+      // 一旦、ソースとレイヤ削除
+      map.removeLayer('pmtiles-building');
+      map.removeSource('pmtiles-building');
+
+      // 国名を引数として関数を呼び出し、返された値を変数に代入
+      const locationInfo = getMapCenter(BasePMTilesName);
+
+      // 値を緯度、経度にそれぞれ代入
+      const longitude = locationInfo[0];
+      const latitude = locationInfo[1];
+
+      // マップの中心座標へ遷移
+      map.flyTo({
+        center: [longitude, latitude],
+        zoom: 14
+      });
+
+      // MSベクトルタイル
+      let PMTiles_URL = "https://pmtiles-data.s3.ap-northeast-1.amazonaws.com/MS_BuildingFootprints/" + BasePMTilesName + ".pmtiles";
+
+      map.addSource("pmtiles-building", {
+        type: "vector",
+        url: "pmtiles://" + PMTiles_URL,
+        attribution: '<a href="https://github.com/microsoft/GlobalMLBuildingFootprints">© Microsoft GlobalMLBuildingFootprintsを加工して作成</a>'
+      });
+
+      map.addLayer({
+        'id': 'pmtiles-building',
+        'source': 'pmtiles-building',
+        'source-layer': BasePMTilesName + 'fgb',
+        "minzoom": 10,
+        "maxzoom": 23,
+        'layout': {
+          'visibility': 'visible',
+        },
+        'type': 'fill-extrusion',
+        'paint': {
+          "fill-extrusion-color": 'rgb(0, 127, 255)',
+          "fill-extrusion-opacity": 1.0,
+          "fill-extrusion-height": ["get", "height"]
+        }
+      });
+
+      // 不透明度の初期表示
+      map.setPaintProperty(
+        'pmtiles-building',
+        'fill-extrusion-opacity',
+        1.0
+      );
+
+      // スライダーで建築物モデルの不透明度を制御
+      const modelsliderOpactiy = document.getElementById('model-slider-opacity');
+      const modelsliderOpactiyValue = document.getElementById('model-slider-opacity-value');
+
+      modelsliderOpactiyValue.textContent = '100%';
+      modelsliderOpactiy.value = "100";
+
+      modelsliderOpactiy.addEventListener('input', (e) => {
+        map.setPaintProperty(
+          'pmtiles-building',
+          'fill-extrusion-opacity',
+          parseInt(e.target.value, 10) / 100
+        );
+        modelsliderOpactiyValue.textContent = e.target.value + '%';
+      });
+
+    }
+  </script>
+</body>
+
+</html>
