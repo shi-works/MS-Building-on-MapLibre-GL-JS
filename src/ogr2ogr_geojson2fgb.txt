@@ -1,0 +1,4 @@
+ogr2ogr -f FlatGeobuf MS_BuildingFootprints_Ukraine.fgb MS_BuildingFootprints_Ukraine.geojson
+ogr2ogr -f FlatGeobuf  MS_BuildingFootprints_Japan.fgb MS_BuildingFootprints_Japan.geojson
+
+ogr2ogr -f FlatGeobuf  032010110.fgb 032010110.geojson

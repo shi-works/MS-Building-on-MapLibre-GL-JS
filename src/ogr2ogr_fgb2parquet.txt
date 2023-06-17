@@ -1,0 +1,5 @@
+ogr2ogr -f "Parquet" MS_BuildingFootprints_Ukraine.parquet MS_BuildingFootprints_Ukraine.fgb
+ogr2ogr -f "Parquet" MS_BuildingFootprints_Japan.parquet MS_BuildingFootprints_Japan.fgb
+
+ogr2ogr -f "Parquet" minedbuildings.blob.core.windows.net_global-buildings_buildings-with-height-coverage.parquet minedbuildings.blob.core.windows.net_global-buildings_buildings-with-height-coverage.geojson
+ogr2ogr -f "Parquet" minedbuildings.blob.core.windows.net_global-buildings_buildings-coverage.parquet minedbuildings.blob.core.windows.net_global-buildings_buildings-coverage.geojson
